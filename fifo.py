@@ -10,3 +10,7 @@ print()
 print(fifo.dequeue())
 print(fifo.dequeue())
 print(fifo.dequeue())
+
+#printing the length of the elements enqueued
+fifo = Queue("1st", "2nd", "3rd")
+print(len(fifo))
