@@ -14,3 +14,7 @@ print(fifo.dequeue())
 #printing the length of the elements enqueued
 fifo = Queue("1st", "2nd", "3rd")
 print(len(fifo))
+
+#another way of printing elements
+for element in fifo:
+    print(element)
