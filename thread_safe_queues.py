@@ -5,6 +5,8 @@ from random import randint
 from time import sleep
 from itertools import zip_longest
 from random import choice, randint
+from dataclasses import dataclass, field
+from enum import IntEnum
 
 from rich.align import Align
 from rich.columns import Columns
@@ -17,24 +19,6 @@ QUEUE_TYPES = {
     "lifo": LifoQueue,
     "heap": PriorityQueue
 }
-
-def main(args):
-    buffer = QUEUE_TYPES[args.queue]()
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-q", "--queue", choices=QUEUE_TYPES, default="fifo")
-    parser.add_argument("-p", "--producers", type=int, default=3)
-    parser.add_argument("-c", "--consumers", type=int, default=2)
-    parser.add_argument("-ps", "--producer-speed", type=int, default=1)
-    parser.add_argument("-cs", "--consumer-speed", type=int, default=1)
-    return parser.parse_args()
-
-if __name__ == "__main__":
-    try:
-        main(parse_args())
-    except KeyboardInterrupt:
-        pass
 
 PRODUCTS = (
     ":balloon:",
@@ -52,6 +36,25 @@ PRODUCTS = (
     ":teddy_bear:",
     ":thread:",
     ":yo-yo:",
+)
+
+@dataclass(order=True)
+class Product:
+    priority: int
+    label: str = field(compare=False)
+
+    def __str__(self):
+        return self.label
+
+class Priority(IntEnum):
+    HIGH = 1
+    MEDIUM = 2
+    LOW = 3
+
+PRIORITIZED_PRODUCTS = (
+    Product(Priority.HIGH, ":1st_place_medal:"),
+    Product(Priority.MEDIUM, ":2nd_place_medal:"),
+    Product(Priority.LOW, ":3rd_place_medal:"),
 )
 
 class Worker(threading.Thread):
@@ -82,6 +85,26 @@ class Worker(threading.Thread):
         for _ in range(100):
             sleep(delay / 100)
             self.progress += 1
+
+class Producer(Worker):
+    def __init__(self, speed, buffer, products):
+        super().__init__(speed, buffer)
+        self.products = products
+
+    def run(self):
+        while True:
+            self.product = choice(self.products)
+            self.simulate_work()
+            self.buffer.put(self.product)
+            self.simulate_idle()
+
+class Consumer(Worker):
+    def run(self):
+        while True:
+            self.product = self.buffer.get()
+            self.simulate_work()
+            self.buffer.task_done()
+            self.simulate_idle()
 
 class View:
     def __init__(self, buffer, producers, consumers):
@@ -130,28 +153,9 @@ class View:
         )
         return Panel(align, height=5, title=title)
 
-class Producer(Worker):
-    def __init__(self, speed, buffer, products):
-        super().__init__(speed, buffer)
-        self.products = products
-
-    def run(self):
-        while True:
-            self.product = choice(self.products)
-            self.simulate_work()
-            self.buffer.put(self.product)
-            self.simulate_idle()
-
-class Consumer(Worker):
-    def run(self):
-        while True:
-            self.product = self.buffer.get()
-            self.simulate_work()
-            self.buffer.task_done()
-            self.simulate_idle()
-
 def main(args):
     buffer = QUEUE_TYPES[args.queue]()
+    products = PRIORITIZED_PRODUCTS if args.queue == "heap" else PRODUCTS
     producers = [
         Producer(args.producer_speed, buffer, PRODUCTS)
         for _ in range(args.producers)
@@ -168,3 +172,18 @@ def main(args):
 
     view = View(buffer, producers, consumers)
     view.animate()
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-q", "--queue", choices=QUEUE_TYPES, default="fifo")
+    parser.add_argument("-p", "--producers", type=int, default=3)
+    parser.add_argument("-c", "--consumers", type=int, default=2)
+    parser.add_argument("-ps", "--producer-speed", type=int, default=1)
+    parser.add_argument("-cs", "--consumer-speed", type=int, default=1)
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    try:
+        main(parse_args())
+    except KeyboardInterrupt:
+        pass
