@@ -4,6 +4,7 @@ import threading
 from random import randint
 from time import sleep
 from itertools import zip_longest
+from random import choice, randint
 
 from rich.align import Align
 from rich.columns import Columns
@@ -128,3 +129,15 @@ class View:
             padding + worker.state, align="left", vertical="middle"
         )
         return Panel(align, height=5, title=title)
+
+class Producer(Worker):
+    def __init__(self, speed, buffer, products):
+        super().__init__(speed, buffer)
+        self.products = products
+
+    def run(self):
+        while True:
+            self.product = choice(self.products)
+            self.simulate_work()
+            self.buffer.put(self.product)
+            self.simulate_idle()
